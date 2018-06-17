@@ -1,0 +1,76 @@
+---
+title: "EDA_combo"
+author: "Andy Pickering"
+date: "6/9/2018"
+output: html_document
+---
+
+# Look for gauge upstream
+# water diversion to golden reservoir?
+
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE,fig.width = 14,fig.width = 10)
+
+```
+
+
+```{r ,fig.width=14}
+
+library(waterData)
+library(snotelr)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+theme_set(theme_gray(base_size = 18))
+
+
+stat_code <- '00003' # daily mean
+var_code  <- '00060' # streamflow (discharge)
+station_id <- '06719505' # Golden Clear Creek Station
+stream_dat <- importDVs(staid = station_id,code = var_code, stat=stat_code,sdate = "2012-01-01", edate = "2018-12-31")
+#View(dat)
+
+stream_dat <- stream_dat %>% 
+  mutate(year=as.factor(year(dates))) %>%
+  mutate(month=month(dates)) %>% 
+  mutate(yday=yday(dates)) %>% 
+  select(-c(staid)) #%>% 
+  #filter(qualcode=='A')
+
+
+#dat_loveland <- snotelr::download_snotel(site_id = 602,internal = TRUE,path = './GoldenStreamGauge/data/LB_snotel.csv')
+
+dat_loveland <- snotelr::download_snotel(site_id = 602,internal = TRUE)
+df_loveland <- dat_loveland[[1]] %>% 
+  select(-c(network,state,site_name,description,start,end,latitude,longitude,elev,county,site_id))
+df_loveland$date <- as.Date(df_loveland$date)
+str(df_loveland)
+
+df_comb <- inner_join(stream_dat,df_loveland,by=c("dates"="date"))
+
+saveRDS(df_loveland,file='GoldenStreamGauge/data/LB_snotel.rds')
+
+```
+
+
+
+```{r, fig.height=10,fig.width=12}
+
+df <- df_comb %>% filter(year==2017 & month>4 & month<8)
+p1 <- df %>% ggplot(aes(dates,snow_water_equivalent))+geom_line()
+p2 <- df %>% ggplot(aes(dates,val))+geom_line()+ylab("Streamflow")
+p3 <- df %>% ggplot(aes(dates,temperature_mean))+geom_line()+ylab("Temp")+geom_smooth()
+
+gridExtra::grid.arrange(p1,p2,p3)
+```
+
+
+```{r}
+
+df_comb 
+
+```
+

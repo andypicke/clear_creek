@@ -1,0 +1,112 @@
+---
+title: "Snotel Data"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.width = 12,fig.height = 10)
+```
+
+## 
+snotelr package: [https://github.com/khufkens/snotelr]
+
+```{r cars}
+
+library(snotelr)
+library(dplyr)
+library(ggplot2)
+theme_set(theme_gray(base_size = 18))
+
+# Get info on all stations
+info <- snotel_info()
+
+# Filter to CO stations
+info_co <- info %>% filter(state=='CO')
+
+# Loveland Basin site
+info_loveland <- info_co %>% filter(site_id==602)
+info_loveland
+
+dat_loveland <- snotelr::download_snotel(site_id = 602,internal = TRUE)
+str(dat_loveland)
+
+df_loveland <- dat_loveland[[1]]
+df_loveland$date <- as.Date(df_loveland$date)
+str(df_loveland)
+
+# Lake Eldora site
+#info_eldora <- info_co %>% filter(site_id==564)
+
+
+
+
+```
+
+
+# Map
+```{r}
+library(leaflet)
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addMarkers(lng=info_loveland$longitude, lat=info_loveland$latitude, popup="Snotel")# %>% 
+    #addMarkers(lng=info_eldora$longitude, lat=info_eldora$latitude, popup="Snotel")
+m
+```
+
+
+
+## Snow Water Equivalent and Temperature Timeseries
+
+```{r pressure, echo=FALSE, message=FALSE, warning=FALSE}
+
+p1 <- df_loveland %>%
+  filter(lubridate::year(date)==2018) %>%
+  ggplot(aes(date,snow_water_equivalent))+
+  geom_point()+
+  ylab("Snow Water Equivalent")
+
+p2 <- df_loveland %>%
+  filter(lubridate::year(date)==2018) %>%
+  ggplot(aes(date,precipitation))+
+  geom_col()+
+  ylab("Precipitation")
+
+
+p3 <- df_loveland %>%
+  filter(lubridate::year(date)==2018) %>%
+  ggplot(aes(date,temperature_mean))+
+  geom_point()+
+  geom_smooth()+
+  ylab("Temperature")
+
+gridExtra::grid.arrange(p1,p2,p3)
+
+```
+
+
+
+# Plot for different years to compare
+```{r}
+
+df_loveland <- df_loveland %>% mutate(yday=lubridate::yday(date)) %>% mutate(year=(lubridate::year(date)))
+
+p1 <- df_loveland %>%
+#  filter(lubridate::year(date)==2018) %>%
+  ggplot(aes(date,snow_water_equivalent))+
+  geom_point()+
+  ylab("Snow Water Equivalent")
+
+p1 <- df_loveland %>%
+  filter(year>2011) %>%
+  ggplot(aes(yday,snow_water_equivalent))+
+  geom_line(aes(group=year,col=as.factor(year)),size=2)+
+  ylab("Snow Water Equivalent")+
+  xlim(50,200)+
+  xlab("Yearday")+
+  ggtitle("Timeseries of Snow Water Equivalent at Loveland Basin",subtitle = "Last 5 years")
+
+p1
+
+```
+
